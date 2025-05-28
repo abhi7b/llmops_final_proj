@@ -38,7 +38,7 @@ A secure and scalable solution for automating financial compliance tasks using A
 └── scripts/                 # Utility scripts
 ```
 
-## Getting Started
+<!-- ## Getting Started
 
 ### Prerequisites
 
@@ -93,7 +93,7 @@ npm start
 - All data is encrypted at rest and in transit
 - Role-based access control (RBAC) implementation
 - Regular security audits and compliance checks
-- Secure API authentication using AWS Cognito
+- Secure API authentication using AWS Cognito -->
 
 
 ## License
