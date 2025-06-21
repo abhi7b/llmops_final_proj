@@ -1,0 +1,13 @@
+version: 1.0
+runtime: docker
+dockerfilePath: backend/Dockerfile
+port: 8080
+healthCheckPath: /health
+healthCheckInterval: 30
+healthCheckTimeout: 5
+healthyThreshold: 3
+unhealthyThreshold: 3
+cpu: 1 vCPU
+memory: 2 GB
+maxConcurrency: 100
+maxSize: 10 
