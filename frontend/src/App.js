@@ -7,11 +7,6 @@ import {
   Grid,
   CircularProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  AlertTitle,
   CssBaseline,
   LinearProgress,
 } from '@mui/material';
@@ -22,8 +17,6 @@ import BlockIcon from '@mui/icons-material/Block';
 import ImageIcon from '@mui/icons-material/Image';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AssessmentIcon from '@mui/icons-material/Assessment';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import DescriptionIcon from '@mui/icons-material/Description';
 import TitleIcon from '@mui/icons-material/Title';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import {

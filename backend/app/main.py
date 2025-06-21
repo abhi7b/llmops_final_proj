@@ -92,12 +92,19 @@ except:
 # Get the AWS region from environment variables, defaulting to us-east-1.
 region_name = os.getenv('AWS_REGION', 'us-east-1')
 
-s3_client = session.client('s3', region_name=region_name)
-bedrock_runtime = session.client(
-    service_name='bedrock-runtime',
-    region_name=region_name
-)
-cloudwatch = session.client('cloudwatch', region_name=region_name)
+# Initialize AWS clients with error handling
+try:
+    s3_client = session.client('s3', region_name=region_name)
+    bedrock_runtime = session.client(
+        service_name='bedrock-runtime',
+        region_name=region_name
+    )
+    cloudwatch = session.client('cloudwatch', region_name=region_name)
+except Exception as e:
+    logger.warning(f"Failed to initialize AWS clients: {str(e)}")
+    s3_client = None
+    bedrock_runtime = None
+    cloudwatch = None
 
 # Hugging Face Inference API Configuration
 HUGGING_FACE_API_BASE = "https://api-inference.huggingface.co/models/"
@@ -123,6 +130,9 @@ class ImageTitle(BaseModel):
 
 def put_metric(metric_name: str, value: float, unit: str = 'Count', dimensions: dict = None):
     """Put a metric to CloudWatch."""
+    if not cloudwatch:
+        return
+        
     try:
         cloudwatch.put_metric_data(
             Namespace=METRIC_NAMESPACE,
@@ -148,6 +158,12 @@ def encode_image_to_base64(image: Image.Image) -> str:
 
 def generate_image_title(image_base64: str) -> dict:
     """Generate title for image using Claude 3 Sonnet."""
+    if not bedrock_runtime:
+        raise HTTPException(
+            status_code=503, 
+            detail="AWS Bedrock service is not available. Please check your AWS configuration."
+        )
+        
     prompt = """Analyze this image and generate a concise, descriptive title. 
     The title should be creative yet accurate, capturing the main subject and mood of the image.
     Format the response as a JSON object with the following structure:
@@ -184,7 +200,8 @@ def generate_image_title(image_base64: str) -> dict:
     start_time = time.time()
     try:
         # Track model invocation
-        put_metric('ModelInvocations', 1)
+        if cloudwatch:
+            put_metric('ModelInvocations', 1)
         
         response = bedrock_runtime.invoke_model(
             modelId=MODEL_ID,
@@ -193,18 +210,22 @@ def generate_image_title(image_base64: str) -> dict:
         
         # Track latency
         latency = time.time() - start_time
-        put_metric('InvocationLatency', latency, unit='Seconds')
+        if cloudwatch:
+            put_metric('InvocationLatency', latency, unit='Seconds')
         
         response_body = json.loads(response['body'].read())
         return json.loads(response_body['content'][0]['text'])
     except bedrock_runtime.exceptions.ThrottlingException:
-        put_metric('Throttles', 1)
+        if cloudwatch:
+            put_metric('Throttles', 1)
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     except bedrock_runtime.exceptions.ClientError as e:
-        put_metric('ClientErrors', 1)
+        if cloudwatch:
+            put_metric('ClientErrors', 1)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        put_metric('ServerErrors', 1)
+        if cloudwatch:
+            put_metric('ServerErrors', 1)
         logger.error(f"Error generating title: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating title: {str(e)}")
 
@@ -281,17 +302,29 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
         analytics['successful_invocations'] += 1
         timestamp = int(time.time())
         s3_key = f"images/{timestamp}_{file.filename}"
-        s3_client.put_object(
-            Bucket=os.getenv('S3_BUCKET_NAME'),
-            Key=s3_key,
-            Body=contents,
-            ContentType=file.content_type,
-            Metadata={
-                'title': result['title'],
-                'confidence': str(result['confidence']),
-                'timestamp': str(timestamp)
-            }
-        )
+        
+        # Only upload to S3 if bucket name is configured
+        s3_bucket_name = os.getenv('S3_BUCKET_NAME')
+        if s3_bucket_name:
+            try:
+                s3_client.put_object(
+                    Bucket=s3_bucket_name,
+                    Key=s3_key,
+                    Body=contents,
+                    ContentType=file.content_type,
+                    Metadata={
+                        'title': result['title'],
+                        'confidence': str(result['confidence']),
+                        'timestamp': str(timestamp)
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to upload to S3: {str(e)}")
+                s3_key = None
+        else:
+            logger.info("S3_BUCKET_NAME not configured, skipping S3 upload")
+            s3_key = None
+            
         return {
             "title": result['title'],
             "confidence": result['confidence'],
