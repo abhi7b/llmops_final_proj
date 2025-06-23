@@ -3,22 +3,27 @@ runtime: python311
 
 build:
   commands:
-    # Install dependencies during build
-    build:
+    pre-build:
       - pip3 install --upgrade pip
       - pip3 install -r requirements.txt
+    build:
+      - echo "Build complete"
 
 run:
   runtime-version: 3.11
-  # Reinstall in pre-run because build layer isn't preserved at runtime
   pre-run:
     - pip3 install --upgrade pip
     - pip3 install -r requirements.txt
   command: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8080
   network:
     port: 8080
-  environment:
-      AWS_ACCESS_KEY_ID: "AKIAVRUVVGRL73FE4E64"
-      AWS_SECRET_ACCESS_KEY: "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"
-      AWS_REGION: "us-east-1"
-      S3_BUCKET_NAME: "imagellmbucket"
+    env: PORT  # optional: maps port to a named env var, default is PORT
+  env:
+    - name: AWS_ACCESS_KEY_ID
+      value: "AKIAVRUVVGRL73FE4E64"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "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"
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: S3_BUCKET_NAME
+      value: "imagellmbucket"
