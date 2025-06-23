@@ -17,13 +17,3 @@ run:
   command: python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8080
   network:
     port: 8080
-    env: PORT  # optional: maps port to a named env var, default is PORT
-  env:
-    - name: AWS_ACCESS_KEY_ID
-      value: "AKIAVRUVVGRL73FE4E64"
-    - name: AWS_SECRET_ACCESS_KEY
-      value: "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"
-    - name: AWS_REGION
-      value: "us-east-1"
-    - name: S3_BUCKET_NAME
-      value: "imagellmbucket"
